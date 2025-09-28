@@ -1,0 +1,348 @@
+---
+title: "Tugas Praktikum TPG p6 - Analisis Peubah Ganda"
+author: "Kamal Aldimas"
+format: html
+editor: visual
+---
+
+
+# **1. Pendahuluan**
+
+**Tujuan Praktikum:**
+
+1\. Memahami konsep uji vektor nilai tengah untuk dua populasi.
+
+2\. Mampu melakukan uji hipotesis dan membentuk selang kepercayaan untuk:
+
+-   **Sampel Berpasangan** (Paired Samples)
+
+-   **Sampel Saling Bebas** (Independent Samples) dengan asumsi ragam sama.
+
+3\. Mampu menginterpretasikan hasil output R dalam konteks masalah.
+
+# **2. Perbandingan Dua Vektor Nilai Tengah Sampel Berpasangan**
+
+Sebuah perusahaan ingin mengevaluasi efektivitas dari pengembangan iklan untuk melihat produktivitas pembeli untuk membeli produk tsb. Dari 100 pelanggan, diukur dua hal:
+
+1.  Produk (jumlah produk yang dibeli per minggu),
+
+2.  Kepuasan Pelanggan (skor skala 0–100).
+
+Pengukuran dilakukan sebelum pengembangan iklan dan setelah pengembangan iklan pada pelanggan yang sudah berlangganan dari lama. Karena datanya berasal dari orang yang sama dalam dua kondisi berbeda, maka sampel berpasangan.
+
+## **Input Data**
+
+
+```{r}
+
+set.seed(94)
+library(MASS)
+# Banyak baris data
+n <- 100
+
+# Bangkitkan data acak
+dataset2 <- data.frame(
+  `Sebelum peningkatan` = sample(70:200, n, replace = TRUE),
+  `Tingkat Kepuasan Sebelum` = sample(10:70, n, replace = TRUE),
+  `Setelah Peningkatan` = sample(100:230, n, replace = TRUE),
+  `Tigkat Kepuasan Setelah` = sample(70:100, n, replace = TRUE)
+)
+
+# Tampilkan data
+print(dataset2)
+```
+
+
+## **Menghitung Selisih Sebelum Peningkatan dan Setelah Peningkatan**
+
+
+```{r}
+Selisih_peningkatan = dataset2[,1]-dataset2[,3]
+Selisih_kepuasan = dataset2[,2]-dataset2[,4]
+
+X = data.frame(Selisih_peningkatan,Selisih_kepuasan)
+```
+
+
+## Menghitung vektor rataan dan matriks covarians
+
+
+```{r}
+xbar = apply(X, 2, mean)
+xbar
+```
+
+```{r}
+cov_m = cov(X)
+cov_m
+```
+
+
+## Uji T2 Hotelling Dua Populasi Sampel Berpasangan
+
+
+```{r}
+library(MVTests)
+mean0 = c(0,0)
+result = OneSampleHT2(X,mu0=mean0,alpha=0.05)
+summary(result)
+
+```
+
+
+> Karena nilai statistik uji sebesar **336.647** dengan **p-value = \<2e-16 (\< 0.05)**, maka terdapat bukti yang sangat kuat untuk **menolak hipotesis nol (H₀)**. Dengan demikian, vektor rata-rata selisih antara kondisi sesudah dan sebelum pelatihan **tidak sama dengan nol**. Artinya, secara multivariat (mencakup semua variabel sekaligus), terdapat **perbedaan yang signifikan** antara sebelum dan sesudah pelatihan.
+
+## Selang Kepercayaan Simultan
+
+
+```{r}
+result$CI
+```
+
+
+## Selang Kepercayaan Bonferroni
+
+
+```{r}
+bon = function(mu,S,n,alpha,k){
+ p = length(mu)
+ lower = mu[k] - sqrt(S[k,k]/n) * abs(qt(alpha/(2*p), df=n-1))
+ upper = mu[k] + sqrt(S[k,k]/n) * abs(qt(alpha/(2*p), df=n-1))
+ c(lower = lower,upper = upper)
+}
+
+n = nrow(X)
+```
+
+```{r}
+#Kata
+bon(xbar, cov_m,n,0.05,1)
+```
+
+```{r}
+#Kata Kerja
+bon(xbar, cov_m,n,0.05,2)
+```
+
+
+# 3. Perbandingan Dua Vektor Nilai Tengah Sampel Saling Bebas Ragam Sama
+
+Sebuah Perusahaan kendaraan membandingkan dua unit mobil dan motor pada dua tipe yaitu matic dan manual. Pada kedua kendaraan ini pastinya sangat bervariasi dengan tipe yg berbeda dari hal konsumsi BBM untuk menemph jarak yang ditempuh dan yang pastinya ada beberapa perbedaan yg signifikan dari kedua unit tsb
+
+
+```{r}
+library(readxl)
+dataset <- read_excel("C:/Users/Kamal Aldimas/Downloads/SEMESTER 5/TPG/Latihan Data Pertemuan 4.xlsx", sheet = 2)
+dataset
+```
+
+```{r}
+set.seed(94)
+n <- 30
+# Bangkitkan data acak
+Matic_mobil  <- round(rnorm(n, mean=600, sd=15))
+Matic_motor <- round(rnorm(n, mean=180, sd=10))
+
+Manual_mobil  <- pmin(pmax(round(rnorm(n, mean=440, sd=12)), 0),550)
+Manual_motor  <- pmin(pmax(round(rnorm(n, mean=130, sd=8)),  0), 300)
+
+dataset_kendaraan <- data.frame(
+  Matic_mobil,
+  Matic_motor,
+  Manual_mobil,
+  Manual_motor
+)
+
+dataset_kendaraan
+```
+
+```{r}
+# Memisahkan Data dari Populasi 1 dan 2
+data_mat = dataset_kendaraan[,1:2]
+data_man = dataset_kendaraan[,3:4]
+```
+
+
+## **Menghitung vektor rataan dan matriks covarians**
+
+
+```{r}
+xbar1 = apply(data_mat, 2, mean)
+xbar1
+```
+
+```{r}
+xbar2 = apply(data_man, 2, mean)
+xbar2
+```
+
+```{r}
+cov_m1 = cov(data_mat)
+cov_m1
+```
+
+```{r}
+cov_m2 = cov(data_man)
+cov_m2
+```
+
+```{r}
+n1 = nrow(data_mat)
+n2 = nrow(data_man)
+
+# S Gabungan
+s_gab = ((n1-1)*cov_m1+(n2-1)*cov_m2)/(n1+n2-2)
+s_gab
+```
+
+
+## **Uji T2 Hotelling Dua Populasi Sampel S**aling Bebas Ragam Sama
+
+
+```{r}
+library(Hotelling)
+
+t2_homogen = hotelling.test(data_mat,data_man,var.equal=TRUE)
+t2_homogen
+```
+
+
+Berdasarkan hasil uji Hotelling’s T², diperoleh nilai statistik uji sebesar 1299 dengan derajat bebas numerator = 2 dan p-value = 0. Karena nilai p-value lebih kecil daripada taraf signifikansi yang ditetapkan, maka keputusan uji adalah menolak hipotesis nol (H₀). Dengan demikian, secara simultan terdapat bukti yang kuat untuk menyatakan adanya perbedaan rata-rata multivariat antara Unit X dan Unit Y. Perbedaan tersebut mencerminkan perbedaan nyata pada populasi, bukan semata-mata disebabkan oleh variasi sampel.
+
+## **Selang Kepercayaan Simultan**
+
+
+```{r}
+T.ci = function(mu1, mu2, S_gab, n1, n2, avec=rep(1,length(mu)), level=0.95){
+p = length(mu1)
+mu = mu1-mu2
+cval = qf(level, p, n1+n2-p-1) * p * (n1+n2-2) / (n1+n2-p-1)
+zhat = crossprod(avec, mu)
+zvar = crossprod(avec, S_gab %*% avec)* (1/n1+1/n2)
+const = sqrt(cval * zvar)
+c(lower = zhat - const, upper = zhat + const)
+}
+```
+
+```{r}
+#TWK
+T.ci(xbar1, xbar2, s_gab, n1,n2, avec=c(1,0),level=0.95)
+```
+
+```{r}
+#TIU
+T.ci(xbar1, xbar2, s_gab, n1,n2, avec=c(0,1),level=0.95)
+```
+
+
+## **Seang Kepercayaan Bonferroni**
+
+
+```{r}
+bon = function(mu1, mu2 ,S, n1, n2, alpha, k){
+ p = length(mu1)
+ mu = mu1-mu2
+ lower = mu[k] - sqrt((S[k,k]) *(1/n1+1/n2))* abs(qt(alpha/(2*p), df=n1+n2-2))
+ upper = mu[k] + sqrt((S[k,k]) *(1/n1+1/n2))* abs(qt(alpha/(2*p), df=n1+n2-2))
+ ci = c(lower = lower,upper = upper)
+ names(ci)= c("lower","upper")
+ ci
+}
+```
+
+```{r}
+#TWK
+bon(xbar1, xbar2, s_gab, n1, n2,0.05,1)
+```
+
+```{r}
+#TIU
+bon(xbar1, xbar2, s_gab, n1, n2,0.05,2)
+```
+
+
+# **4. Perbandingan Dua Vektor Nilai Tengah Sampel Saling Bebas Ragam Tidak Sama**
+
+## **Input Data**
+
+
+```{r}
+library(readxl)
+dataset <- read_excel("C:/Users/Kamal Aldimas/Downloads/SEMESTER 5/TPG/Latihan Data Pertemuan 4.xlsx", sheet = 2)
+dataset
+```
+
+```{r}
+# Memisahkan Data dari Populasi 1 dan 2
+data_cat = dataset[,1:2]
+data_man = dataset[,3:4]
+```
+
+
+## **Menghitung vektor rataan dan matriks covarians**
+
+
+```{r}
+xbar1 = apply(data_cat, 2, mean)
+xbar1
+```
+
+```{r}
+xbar2 = apply(data_man, 2, mean)
+xbar2
+```
+
+```{r}
+cov_m1 = cov(data_cat)
+cov_m1
+```
+
+```{r}
+cov_m2 = cov(data_man)
+cov_m2
+```
+
+```{r}
+n1 = nrow(data_cat)
+n2 = nrow(data_man)
+```
+
+
+## **Uji T2 Hotelling Dua Populasi Sampel S**aling Bebas Ragam Sama
+
+
+```{r}
+library(Hotelling)
+t2_not_homogen = hotelling.test(data_cat,data_man,var.equal=FALSE)
+t2_not_homogen
+```
+
+
+## **Selang Kepercayaan Simultan**
+
+
+```{r}
+T.ci = function(mu1, mu2, S1, S2, n1, n2, avec=rep(1,length(mu)), level=0.95){
+p = length(mu1)
+mu = mu1-mu2
+cval = qchisq(level, p)
+zhat = crossprod(avec, mu)
+zvar = crossprod(avec, S1 %*% avec)/n1 + crossprod(avec, S2 %*% avec)/n2
+const = sqrt(cval * zvar)
+c(lower = zhat - const, upper = zhat + const)
+}
+
+#TWK
+T.ci(xbar1, xbar2, cov_m1, cov_m2, n1,n2, avec=c(1,0),level=0.95)
+```
+
+```{r}
+#TWK
+T.ci(xbar1, xbar2, cov_m1, cov_m2, n1,n2, avec=c(1,0),level=0.95)
+```
+
+```{r}
+#TIU
+T.ci(xbar1, xbar2, cov_m1, cov_m2, n1,n2, avec=c(0,1),level=0.95)
+```
+
